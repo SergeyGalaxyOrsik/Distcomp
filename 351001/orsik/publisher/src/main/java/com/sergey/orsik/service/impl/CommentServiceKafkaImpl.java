@@ -88,13 +88,14 @@ public class CommentServiceKafkaImpl implements CommentService {
     @Override
     @CacheEvict(value = "comments:list", allEntries = true)
     public CommentResponseTo create(CommentRequestTo request) {
-        tweetRepository.findById(request.getTweetId())
+        var tweet = tweetRepository.findById(request.getTweetId())
                 .orElseThrow(() -> new EntityNotFoundException("Tweet", request.getTweetId()));
+        Long creatorId = request.getCreatorId() != null ? request.getCreatorId() : tweet.getCreatorId();
 
         long id = CommentIds.newId();
         Instant created = request.getCreated() != null ? request.getCreated() : Instant.now();
 
-        CommentRequestTo body = new CommentRequestTo(id, request.getTweetId(), request.getCreatorId(), request.getContent(), created);
+        CommentRequestTo body = new CommentRequestTo(id, request.getTweetId(), creatorId, request.getContent(), created);
 
         CommentTransportRequest transport = new CommentTransportRequest();
         transport.setOperation(CommentTransportOperation.CREATE_ASYNC);
@@ -102,7 +103,7 @@ public class CommentServiceKafkaImpl implements CommentService {
 
         kafkaTemplate.send(inTopic, String.valueOf(request.getTweetId()), transport);
 
-        return new CommentResponseTo(id, request.getTweetId(), request.getCreatorId(), request.getContent(), created, CommentState.PENDING);
+        return new CommentResponseTo(id, request.getTweetId(), creatorId, request.getContent(), created, CommentState.PENDING);
     }
 
     @Override

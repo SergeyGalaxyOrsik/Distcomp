@@ -81,24 +81,26 @@ public class CommentDiscussionService {
     }
 
     public CommentResponseTo create(CommentRequestTo request) {
-        publisherTweetClient.requireTweetExists(request.getTweetId());
+        var tweet = publisherTweetClient.fetchTweet(request.getTweetId());
         long id = nextUniqueId();
         Instant created = request.getCreated() != null ? request.getCreated() : Instant.now();
         CommentState state = moderationService.moderate(request.getContent());
-        return persistNew(id, request.getTweetId(), request.getCreatorId(), request.getContent(), created, state);
+        Long creatorId = request.getCreatorId() != null ? request.getCreatorId() : tweet.creatorId();
+        return persistNew(id, request.getTweetId(), creatorId, request.getContent(), created, state);
     }
 
     /**
      * Persists a comment created asynchronously from the publisher (id assigned upstream). Idempotent if id already exists.
      */
     public CommentResponseTo createFromKafkaAssignedId(long id, CommentRequestTo request) {
-        publisherTweetClient.requireTweetExists(request.getTweetId());
+        var tweet = publisherTweetClient.fetchTweet(request.getTweetId());
         if (commentByIdRepository.existsById(id)) {
             return fromIdRow(commentByIdRepository.findById(id).orElseThrow());
         }
         Instant created = request.getCreated() != null ? request.getCreated() : Instant.now();
         CommentState state = moderationService.moderate(request.getContent());
-        return persistNew(id, request.getTweetId(), request.getCreatorId(), request.getContent(), created, state);
+        Long creatorId = request.getCreatorId() != null ? request.getCreatorId() : tweet.creatorId();
+        return persistNew(id, request.getTweetId(), creatorId, request.getContent(), created, state);
     }
 
     private CommentResponseTo persistNew(long id, long tweetId, long creatorId, String content, Instant created, CommentState state) {
@@ -123,10 +125,11 @@ public class CommentDiscussionService {
 
         Instant created = request.getCreated() != null ? request.getCreated() : existing.getCreated();
         CommentState state = moderationService.moderate(request.getContent());
-        CommentByIdRow updated = new CommentByIdRow(id, request.getTweetId(), request.getCreatorId(), request.getContent(), created, state);
+        Long creatorId = request.getCreatorId() != null ? request.getCreatorId() : existing.getCreatorId();
+        CommentByIdRow updated = new CommentByIdRow(id, request.getTweetId(), creatorId, request.getContent(), created, state);
         CommentByTweetRow newTweetRow = new CommentByTweetRow(
                 new CommentByTweetKey(request.getTweetId(), created, id),
-                request.getCreatorId(),
+                creatorId,
                 request.getContent(),
                 state);
         commentByIdRepository.save(updated);

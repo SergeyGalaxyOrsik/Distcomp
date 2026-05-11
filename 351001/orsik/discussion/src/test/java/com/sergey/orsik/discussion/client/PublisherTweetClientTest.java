@@ -33,7 +33,10 @@ class PublisherTweetClientTest {
 
     @Test
     void requireTweetExistsWhenOk() {
-        server.enqueue(new MockResponse().setResponseCode(200));
+        server.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .addHeader("Content-Type", "application/json")
+                .setBody("{\"id\":1,\"creatorId\":10}"));
         assertThatCode(() -> client.requireTweetExists(1L)).doesNotThrowAnyException();
     }
 

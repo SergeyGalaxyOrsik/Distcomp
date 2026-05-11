@@ -4,6 +4,7 @@ import com.sergey.orsik.discussion.cassandra.CommentByIdRow;
 import com.sergey.orsik.discussion.cassandra.CommentByTweetKey;
 import com.sergey.orsik.discussion.cassandra.CommentByTweetRow;
 import com.sergey.orsik.discussion.client.PublisherTweetClient;
+import com.sergey.orsik.discussion.client.PublisherTweetDto;
 import com.sergey.orsik.discussion.exception.EntityNotFoundException;
 import com.sergey.orsik.discussion.repository.CommentByIdRepository;
 import com.sergey.orsik.discussion.repository.CommentByTweetRepository;
@@ -60,6 +61,7 @@ class CommentDiscussionServiceTest {
     @Test
     void createGeneratesIdAndSavesBothProjections() {
         when(commentByIdRepository.existsById(anyLong())).thenReturn(false);
+        when(publisherTweetClient.fetchTweet(9L)).thenReturn(new PublisherTweetDto(9L, 1L));
         CommentRequestTo req = new CommentRequestTo(null, 9L, 1L, "Hello world", null);
 
         CommentResponseTo created = service.create(req);
@@ -71,7 +73,7 @@ class CommentDiscussionServiceTest {
         assertThat(created.getCreated()).isNotNull();
         assertThat(created.getState()).isEqualTo(CommentState.APPROVE);
 
-        verify(publisherTweetClient).requireTweetExists(9L);
+        verify(publisherTweetClient).fetchTweet(9L);
         ArgumentCaptor<CommentByIdRow> idCap = ArgumentCaptor.forClass(CommentByIdRow.class);
         ArgumentCaptor<CommentByTweetRow> twCap = ArgumentCaptor.forClass(CommentByTweetRow.class);
         verify(commentByIdRepository).save(idCap.capture());
@@ -160,10 +162,20 @@ class CommentDiscussionServiceTest {
     @Test
     void createDoesNotCallPublisherWhenTweetInvalidHandledByClient() {
         doThrow(new EntityNotFoundException("Tweet", 404L))
-                .when(publisherTweetClient).requireTweetExists(404L);
+                .when(publisherTweetClient).fetchTweet(404L);
 
         assertThatThrownBy(() -> service.create(new CommentRequestTo(null, 404L, 1L, "xx", null)))
                 .isInstanceOf(EntityNotFoundException.class);
         verify(commentByIdRepository, never()).save(any());
+    }
+
+    @Test
+    void createUsesTweetAuthorWhenCreatorIdOmitted() {
+        when(commentByIdRepository.existsById(anyLong())).thenReturn(false);
+        when(publisherTweetClient.fetchTweet(9L)).thenReturn(new PublisherTweetDto(9L, 42L));
+
+        CommentResponseTo created = service.create(new CommentRequestTo(null, 9L, null, "Hello world", null));
+
+        assertThat(created.getCreatorId()).isEqualTo(42L);
     }
 }

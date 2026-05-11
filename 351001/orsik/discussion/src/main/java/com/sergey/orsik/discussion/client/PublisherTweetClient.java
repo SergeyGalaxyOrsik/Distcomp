@@ -16,14 +16,22 @@ public class PublisherTweetClient {
         this.publisherRestClient = publisherRestClient;
     }
 
-    public void requireTweetExists(Long tweetId) {
+    public PublisherTweetDto fetchTweet(long tweetId) {
         try {
-            publisherRestClient.get()
+            PublisherTweetDto dto = publisherRestClient.get()
                     .uri(TWEET_PATH, tweetId)
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(PublisherTweetDto.class);
+            if (dto == null || dto.creatorId() == null) {
+                throw new EntityNotFoundException("Tweet", tweetId);
+            }
+            return dto;
         } catch (HttpClientErrorException.NotFound ex) {
             throw new EntityNotFoundException("Tweet", tweetId);
         }
+    }
+
+    public void requireTweetExists(Long tweetId) {
+        fetchTweet(tweetId);
     }
 }

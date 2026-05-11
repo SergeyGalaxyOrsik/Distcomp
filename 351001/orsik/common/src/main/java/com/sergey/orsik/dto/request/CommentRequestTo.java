@@ -19,7 +19,7 @@ public class CommentRequestTo {
     @NotNull(message = "tweetId must not be null")
     private Long tweetId;
 
-    @NotNull(message = "creatorId must not be null")
+    /** Optional for v1 / unauthenticated clients; defaults to the tweet author's id. */
     private Long creatorId;
 
     @NotBlank(message = "content must not be blank")

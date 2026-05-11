@@ -57,6 +57,21 @@ class CommentServiceKafkaImplIT {
     }
 
     @Test
+    void createDefaultsCreatorIdFromTweetWhenOmitted() {
+        Tweet tweet = new Tweet();
+        tweet.setId(2L);
+        tweet.setCreatorId(77L);
+        tweet.setTitle("t");
+        tweet.setContent("c");
+        tweet.setLabels(new HashSet<>());
+        when(tweetRepository.findById(2L)).thenReturn(Optional.of(tweet));
+
+        CommentResponseTo created = commentService.create(new CommentRequestTo(null, 2L, null, "hello", null));
+
+        assertThat(created.getCreatorId()).isEqualTo(77L);
+    }
+
+    @Test
     void findByIdUsesKafkaRpc() {
         CommentResponseTo found = commentService.findById(1L);
         assertThat(found.getId()).isEqualTo(1L);
